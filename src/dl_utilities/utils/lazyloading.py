@@ -40,7 +40,6 @@ class LazyModule(Generic[Module]):
             if self.__name in globals():
                 del globals()[self.__name]
             self.__module = self.__importer()
-            print("Imported module:", self.__name)
         return getattr(self.__module, attr)
 
     def __repr__(self):
