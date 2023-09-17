@@ -1,39 +1,32 @@
-import argparse
-from ... import scripting as dls
+from .. import ArgumentParser, wandb
+from ..context import Context, ContextModule
 
-# Module Interface ---------------------------------------------------------------------------------
+class Train(ContextModule):
 
-# Module Configuration -----------------------------------------------------------------------------
+    NAME = "Training Hyperparameters"
 
-NAME = "Training Hyperparameters"
+    def __init__(self, context: Context):
+        super().__init__(context)
+        self._argument_parser = self.context.argument_parser.add_argument_group(
+            title=Train.NAME,
+            description="Configuration for the training module.")
 
-def argument_parser() -> dls.ArgumentParser:
-    """
-    Get the current argument parser
-    """
-    assert __argument_parser is not None
-    return __argument_parser
+    @property
+    def argument_parser(self) -> ArgumentParser:
+        """
+        Get the argument parser for this module.
+        """
+        return self._argument_parser
 
-def _define_arguments(parser: dls.ArgumentParser):
-    """
-    Descriptions pulled from W&B documentation:
-    https://docs.wandb.ai/ref/python/init
-    """
-    group = parser.add_argument_group(title=NAME, description="Configuration for training.")
-    group.add_argument("--epochs", type=str, required=False, default=1, help="The number of epochs to train for.")
-    group.add_argument("--batch-size", type=str, required=False, default=32, help="The training batch size to use.")
+    def _define_arguments(self):
+        """
+        Descriptions pulled from W&B documentation:
+        https://docs.wandb.ai/ref/python/init
+        """
+        group = self.argument_parser
+        group.add_argument("--epochs", type=str, required=False, default=1, help="The number of epochs to train for.")
+        group.add_argument("--batch-size", type=str, required=False, default=32, help="The training batch size to use.")
 
-
-def _init(config: argparse.Namespace):
-    if dls.is_using("dl_utilities.scripting.module.wandb"):
-        from . import wandb
-        wandb.add_config_exclude_keys(["epochs"])
-
-def _start(config: argparse.Namespace):
-    pass
-
-def _stop(config: argparse.Namespace):
-    pass
-
-def _finish(config: argparse.Namespace):
-    pass
+    def _init(self):
+        if self.context.is_using(wandb):
+            self.context.get(wandb).exclude_config_keys(["epochs"])

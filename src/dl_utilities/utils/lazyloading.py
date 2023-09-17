@@ -22,7 +22,8 @@ _lazy_attribute_blacklist: set[str] = set([
     "_repr_javascript_"
 ])
 
-Module = TypeVar("Module", bound=ModuleType)
+Module = TypeVar("Module")
+
 class LazyModule(Generic[Module]):
     def __init__(self, name: str, importer: Callable[[], Module]):
         self.__name = name
