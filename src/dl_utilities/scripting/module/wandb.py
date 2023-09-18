@@ -76,9 +76,12 @@ class PersistentObjectFactory(abc.ABC, Generic[T]):
         return self._do(self.save, PersistentObjectFactory.State.Saving)
 
     def path(self, path: str|Path) -> Path:
+        assert not Path(path).is_absolute(), "Absolute paths are not allowed in persistent object factories."
+        path = Path("persistent_objects") / path
+        abs_path = Path(self.wandb.run.dir) / path
         if self._state == PersistentObjectFactory.State.Loading:
-            print("Downloading files from W&B...")
-        return Path(self.wandb.run.dir) / path
+            self.wandb.restore(path, recursive=True)
+        return abs_path
 
     @abc.abstractmethod
     def create(self, config: argparse.Namespace) -> T:
@@ -100,6 +103,7 @@ class Wandb(ContextModule):
 
     def __init__(self, context: Context):
         super().__init__(context)
+        self._api: wandb.Api|None = None
         self._run: Run|None = None
         self._job_type: str|None = None
         self._can_resume: bool = True
@@ -120,6 +124,15 @@ class Wandb(ContextModule):
             title=self.NAME,
             description="Configuration for the Weights & Biases module.")
         self._factories: list[PersistentObjectFactory] = []
+
+    @property
+    def api(self) -> wandb.Api:
+        """
+        Get the W&B API.
+        """
+        if self._api is None:
+            self._api = wandb.Api()
+        return self._api
 
     @property
     def argument_parser(self) -> ArgumentParser:
@@ -168,6 +181,27 @@ class Wandb(ContextModule):
         """
         self._config_include_keys.update(keys)
         return self
+
+    def restore(
+        self,
+        name: str|Path,
+        run_path: Optional[str|Path] = None,
+        replace: bool = False,
+        root: Optional[str|Path] = None,
+        recursive: bool = False
+    ) -> Path:
+        """
+        Restore (recursively) a the given directory from a previous run.
+        """
+        name = Path(name)
+        run_path = Path(run_path if run_path is not None else self.run.path)
+        run = self.api.run(str(run_path))
+        if recursive:
+            for f in filter(lambda f: str(f.name).startswith(str(name)), run.files()):
+                self.run.restore(f.name, str(run_path), replace, root)
+        else:
+            self.run.restore(str(name), str(run_path), replace, root)
+        return Path(self.run.dir) / name
 
     def _define_arguments(self):
         group = self.argument_parser
@@ -218,6 +252,16 @@ class Wandb(ContextModule):
             return
         for factory in self._factories:
             factory._save()
+        persistent_objects = Path(self.run.dir) / "persistent_objects"
+        if persistent_objects.exists() and persistent_objects.is_dir():
+            paths = [persistent_objects]
+            while len(paths) > 0:
+                path = paths.pop()
+                for child in path.iterdir():
+                    if child.is_dir():
+                        paths.append(child)
+                    else:
+                        self.run.save(str(child), base_path=str(child))
         self._run.finish()
 
 context_module = Wandb
