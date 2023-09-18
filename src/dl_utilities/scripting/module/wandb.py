@@ -1,22 +1,34 @@
 import abc
+import argparse
+import enum
 from pathlib import Path
 from typing import cast
 import wandb
 from wandb.wandb_run import Run
-from typing import Generic, TypeVar
+from typing import Callable, Generic, Optional, TypeVar
 from .. import ArgumentParser
 from ..context import Context, ContextModule
 
 T = TypeVar("T")
+DoResult = TypeVar("DoResult")
 
 class PersistentObjectFactory(abc.ABC, Generic[T]):
     """
     A factory for creating persistent objects that can be saved and loaded via W&B.
     """
-    def __init__(self, context: Context, wandb: "Wandb"):
+    class State(enum.Enum):
+        Creating = enum.auto()
+        Idle = enum.auto()
+        Loading = enum.auto()
+        Saving = enum.auto()
+
+    def __init__(self, context: Optional[Context] = None):
+        if context is None:
+            context = Context.current()
         self._context = context
-        self._wandb = wandb
-        self._object: T|None = None
+        self._instance: T = None # type: ignore
+        self._state = PersistentObjectFactory.State.Idle
+        self.context.get(Wandb)._factories.append(self) # Register this factory with W&B
 
     @property
     def context(self) -> Context:
@@ -30,29 +42,55 @@ class PersistentObjectFactory(abc.ABC, Generic[T]):
         """
         Get the W&B module.
         """
-        return self._wandb
+        return self.context.get(Wandb)
+
+    @property
+    def instance(self) -> T:
+        """
+        Get the current object's instance.
+        """
+        if self._instance is None:
+            if self.wandb.run.resumed:
+                self._instance = self._load()
+            else:
+                self._instance = self._create()
+        return self._instance
+
+    def _do(self, operation: Callable[[], DoResult], state: State) -> DoResult:
+        self._state = state
+        result = operation()
+        self._state = PersistentObjectFactory.State.Idle
+        return result
+
+    def _create(self) -> T:
+        return self._do(
+            lambda: self.create(self.context.config),
+            PersistentObjectFactory.State.Creating)
+
+    def _load(self) -> T:
+        return self._do(self.load, PersistentObjectFactory.State.Loading)
+
+    def _save(self):
+        if self._instance is None:
+            return
+        return self._do(self.save, PersistentObjectFactory.State.Saving)
+
+    def path(self, path: str|Path) -> Path:
+        if self._state == PersistentObjectFactory.State.Loading:
+            print("Downloading files from W&B...")
+        return Path(self.wandb.run.dir) / path
 
     @abc.abstractmethod
-    def save(self):
-        pass
+    def create(self, config: argparse.Namespace) -> T:
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def load(self) -> T:
-        pass
+        raise NotImplementedError()
 
     @abc.abstractmethod
-    def create(self) -> T:
-        pass
-
-    def get(self) -> T:
-        """
-        Get the object.
-        """
-        if self._object is None:
-            self._object = self.load()
-            if self._object is None:
-                self._object = self.create()
-        return self._object
+    def save(self):
+        raise NotImplementedError()
 
 
 class Wandb(ContextModule):
@@ -81,6 +119,7 @@ class Wandb(ContextModule):
         self._argument_parser = self.context.argument_parser.add_argument_group(
             title=self.NAME,
             description="Configuration for the Weights & Biases module.")
+        self._factories: list[PersistentObjectFactory] = []
 
     @property
     def argument_parser(self) -> ArgumentParser:
@@ -177,6 +216,8 @@ class Wandb(ContextModule):
     def _stop(self):
         if self._run is None:
             return
+        for factory in self._factories:
+            factory._save()
         self._run.finish()
 
 context_module = Wandb

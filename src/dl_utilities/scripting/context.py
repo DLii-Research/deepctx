@@ -6,6 +6,7 @@ import threading
 import time
 from typing import Callable, cast, Optional, overload, TypeVar
 
+ArgumentProvider = Callable[[argparse.ArgumentParser], None]|type["IArgumentProvider"]
 ArgumentParser = argparse.ArgumentParser|argparse._ArgumentGroup|argparse._MutuallyExclusiveGroup
 ContextModuleType = TypeVar("ContextModuleType", bound="ContextModule")
 Job = Callable[["Context"], None]
@@ -18,6 +19,11 @@ class State(enum.Enum):
     Running = enum.auto()
     Stopping = enum.auto()
     Finished = enum.auto()
+
+class IArgumentProvider:
+    @staticmethod
+    def define_arguments(parser: ArgumentParser):
+        pass
 
 class ContextModule:
     NAME: str
@@ -52,6 +58,13 @@ class Context:
     # A mapping of threads to contexts
     contexts: dict[threading.Thread, "Context"] = {}
 
+    @staticmethod
+    def current():
+        """
+        Get the current context instance.
+        """
+        return context()
+
     def __init__(
         self,
         job: Job,
@@ -65,6 +78,7 @@ class Context:
         self._config: argparse.Namespace|None = None
         self._modules: list[ContextModule] = []
         self._state = State.Idle
+        self._store = {}
         self._thread: threading.Thread|None = None
         self._interrupt_callbacks: set[Callable[["Context"], None]] = set()
         self._argument_parser: argparse.ArgumentParser = argparse.ArgumentParser(
@@ -196,6 +210,13 @@ class Context:
         """
         return self._state
 
+    @property
+    def store(self) -> dict:
+        """
+        Get the store for this context.
+        """
+        return self._store
+
 
 def context() -> Context:
     """
@@ -220,3 +241,5 @@ def execute(*contexts: Context):
             context.stop()
     for context in contexts:
         context.wait_for_finish()
+
+
