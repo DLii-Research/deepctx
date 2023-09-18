@@ -21,7 +21,7 @@ class Tensorflow(ContextModule):
     def _define_arguments(self):
         parser = self.context.argument_parser.add_argument_group("Tensorflow Settings")
         parser.add_argument("--num-gpus", type=int, default=0, help="The number of GPUs to use")
-        parser.add_argument("--gpu-ids", type=lambda x: list(map(int, x.split(','))), default=None, help="A comma separated list of GPUs to use.")
+        parser.add_argument("--gpu-ids", type=lambda x: list(map(int, x.split(','))), default=None, help="A comma separated list of GPUs to make avaliable for selection.")
         parser.add_argument("--use-static-memory", action="store_true", default=False, help="Use static memory allocation.")
 
     def _select_gpus(self, config: argparse.Namespace):
