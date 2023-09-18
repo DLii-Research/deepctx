@@ -79,52 +79,25 @@ class Context:
         self.__argument_parser = argument_parser
         return self
 
-    @overload
     def get(self, module: type[ContextModuleType]) -> ContextModuleType:
-        ...
-    @overload
-    def get(self, module: Callable[[], type[ContextModuleType]]) -> ContextModuleType:
-        ...
-    def get(
-        self,
-        module: type[ContextModuleType]|Callable[[], type[ContextModuleType]]
-    ) -> ContextModuleType:
         """
         Get the given module for the current context.
         """
-        if isinstance(module, Callable):
-            module = module()
         for used_module in self._modules:
             if isinstance(used_module, module):
                 return cast(ContextModuleType, used_module)
         raise Exception(f"Module {module} is not being used.")
 
-    @overload
     def is_using(self, module: type[ContextModuleType]) -> bool:
-        ...
-    @overload
-    def is_using(self, module: Callable[[], type[ContextModuleType]]) -> bool:
-        ...
-    def is_using(self, module: type[ContextModuleType]|Callable[[], type[ContextModuleType]]) -> bool:
         """
         Check if the given module is being used in this context.
         """
-        if isinstance(module, Callable):
-            module = module()
         return any(isinstance(used_module, module) for used_module in self._modules)
 
-    @overload
-    def use(self, module: type[ContextModule]) -> ContextModuleType:
-        ...
-    @overload
-    def use(self, module: Callable[[], type[ContextModuleType]]) -> ContextModuleType:
-        ...
-    def use(self, module: type[ContextModuleType]|Callable[[], type[ContextModuleType]]) -> ContextModuleType:
+    def use(self, module: type[ContextModuleType]) -> ContextModuleType:
         """
         Use the given module in this context.
         """
-        if isinstance(module, Callable):
-            module = module()
         assert module not in self._modules
         instance = module(self)
         bisect.insort(self._modules, instance, key=lambda m: m.NAME)

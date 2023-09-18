@@ -1,13 +1,13 @@
-from .utils.lazyloading import lazy_module
+from .utils.lazyloading import lazy_wrapper
 
 __version__ = "0.0.1"
 
-from . import hardware
-from . import integration
+# from . import hardware
+# from . import integration
 
 # Integration --------------------------------------------------------------------------------------
 
-# Tensorflow
-@lazy_module
-def __import(): from .integration import tensorflow; return tensorflow
-tf = __import
+@lazy_wrapper
+def tf():
+    from .integration import tensorflow
+    return tensorflow

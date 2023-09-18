@@ -1,10 +1,7 @@
 """
 This module provides a simple lazy-loading mechanism for various libraries.
 """
-import inspect
-import re
 from typing import Callable, cast, Generic, TypeVar
-from types import ModuleType
 
 _lazy_attribute_blacklist: set[str] = set([
     # IPython
@@ -22,59 +19,58 @@ _lazy_attribute_blacklist: set[str] = set([
     "_repr_javascript_"
 ])
 
-Module = TypeVar("Module")
+T = TypeVar("T")
 
-class LazyModule(Generic[Module]):
-    def __init__(self, name: str, importer: Callable[[], Module]):
+class LazyWrapper(Generic[T]):
+    """
+    Lazily load/create an object.
+    """
+    def __init__(self, name: str, factory: Callable[[], T]):
         self.__name = name
-        self.__importer = importer
-        self.__module = None
+        self.__factory = factory
+        self.__wrapped_object = None
 
     @property
-    def is_loaded(self):
-        return self.__module is not None
+    def __is_loaded__(self):
+        return self.__wrapped_object is not None
+
+    def __load__(self) -> T:
+        if self.__wrapped_object is None:
+            self.__wrapped_object = self.__factory()
+        return self.__wrapped_object
+
+    @property
+    def __wrapped_object__(self):
+        return self.__load__()
+
+    def __call__(self, *args, **kwargs):
+        obj = self.__wrapped_object__
+        return obj(*args, **kwargs) # type: ignore
 
     def __getattr__(self, attr):
-        if self.__module is None:
-            if attr in _lazy_attribute_blacklist:
-                raise AttributeError(f"Attribute {attr} is not available.")
-            if self.__name in globals():
-                del globals()[self.__name]
-            self.__module = self.__importer()
-        return getattr(self.__module, attr)
+        if self.__wrapped_object is not None and attr in _lazy_attribute_blacklist:
+            raise AttributeError(f"Attribute {attr} is not available.")
+        return getattr(self.__wrapped_object__, attr)
+
+    # def __setattr__(self, attr, value):
+    #     setattr(self.__wrapped_object__, attr, value)
 
     def __repr__(self):
-        return f"LazyModule({self.__name})"
+        return f"LazyObject({self.__name})"
 
 
-def lazy_module(importer: Callable[[], Module]) -> Module:
+def lazy_wrapper(factory: Callable[[], T]) -> T:
     """
-    A decorator to lazily-import a module while providing all available type information.
+    A decorator to lazily evaluate a function while providing all available type information.
 
     In most situations, the import function must be defined in the following format:
 
     '''py
-    @lazymodule
+    @lazy_wrapper
     def name():
         import name
         return name
+
     ```
     """
-    return lazy_import(importer)
-
-
-def lazy_import(importer: Callable[[], Module]) -> Module:
-    """
-    Lazily-import a module while providing all available type information.
-
-    In most situations, the import function must be defined in the following format:
-
-    ```py
-    def __import():
-        import name
-        return name
-    name = lazy_import(__import)
-    ```
-    """
-    name = re.findall(r"return ([^\s\n]*)", inspect.getsource(importer))[0]
-    return cast(Module, LazyModule(cast(str, name), importer))
+    return cast(T, LazyWrapper(factory.__name__, factory))

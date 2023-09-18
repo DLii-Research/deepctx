@@ -1,11 +1,7 @@
 import numpy as np
 import random
-from .. import ArgumentParser, tensorflow
-from ..context import Context, ContextModule
-
-# Module Interface ---------------------------------------------------------------------------------
-
-# Module Configuration -----------------------------------------------------------------------------
+from ..context import ContextModule
+from ... import scripting as dls
 
 class Rng(ContextModule):
 
@@ -23,7 +19,7 @@ class Rng(ContextModule):
     def _init(self):
         random.seed(self.context.config.seed)
         np.random.seed(self.context.config.seed)
-        if self.context.is_using(tensorflow):
+        if self.context.is_using(dls.module.Tensorflow):
             import tensorflow as tf
             tf.random.set_seed(self.context.config.seed)
         self._rng = np.random.default_rng(self.context.config.seed)

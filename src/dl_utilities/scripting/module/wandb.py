@@ -1,11 +1,64 @@
+import abc
+from pathlib import Path
 from typing import cast
 import wandb
 from wandb.wandb_run import Run
+from typing import Generic, TypeVar
 from .. import ArgumentParser
 from ..context import Context, ContextModule
 
+T = TypeVar("T")
+
+class PersistentObjectFactory(abc.ABC, Generic[T]):
+    """
+    A factory for creating persistent objects that can be saved and loaded via W&B.
+    """
+    def __init__(self, context: Context, wandb: "Wandb"):
+        self._context = context
+        self._wandb = wandb
+        self._object: T|None = None
+
+    @property
+    def context(self) -> Context:
+        """
+        Get the context.
+        """
+        return self._context
+
+    @property
+    def wandb(self) -> "Wandb":
+        """
+        Get the W&B module.
+        """
+        return self._wandb
+
+    @abc.abstractmethod
+    def save(self):
+        pass
+
+    @abc.abstractmethod
+    def load(self) -> T:
+        pass
+
+    @abc.abstractmethod
+    def create(self) -> T:
+        pass
+
+    def get(self) -> T:
+        """
+        Get the object.
+        """
+        if self._object is None:
+            self._object = self.load()
+            if self._object is None:
+                self._object = self.create()
+        return self._object
+
+
 class Wandb(ContextModule):
     NAME = "Weights & Biases"
+
+    PersistentObjectFactory = PersistentObjectFactory
 
     def __init__(self, context: Context):
         super().__init__(context)
@@ -101,7 +154,6 @@ class Wandb(ContextModule):
         if self.can_resume and config.wandb_resume is not None:
             resume = "must"
             run_id = config.wandb_resume
-        print(self._config_exclude_keys)
         self._run = cast(Run, wandb.init(
             id=run_id,
             job_type=self._job_type,
@@ -126,3 +178,5 @@ class Wandb(ContextModule):
         if self._run is None:
             return
         self._run.finish()
+
+context_module = Wandb

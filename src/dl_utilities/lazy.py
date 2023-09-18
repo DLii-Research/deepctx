@@ -1,8 +1,7 @@
-from .utils.lazyloading import lazy_module
+from .utils.lazyloading import lazy_wrapper
 
-@lazy_module
-def __import():
+@lazy_wrapper
+def tensorflow():
     del globals()["tensorflow"]
     import tensorflow
     return tensorflow
-tensorflow = __import

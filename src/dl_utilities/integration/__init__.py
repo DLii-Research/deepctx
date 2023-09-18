@@ -1,7 +1,7 @@
-from ..utils.lazyloading import lazy_module
+from ..utils.lazyloading import lazy_wrapper
 
 # Slurm Integration
-@lazy_module
+@lazy_wrapper
 def __import(): # type: ignore
     del globals()["slurm"]
     from . import slurm
@@ -9,7 +9,7 @@ def __import(): # type: ignore
 slurm = __import # Fix IDE highlighting
 
 # Tensorflow Integration
-@lazy_module
+@lazy_wrapper
 def __import():
     del globals()["tensorflow"]
     from . import tensorflow
