@@ -66,6 +66,7 @@ class Context:
         self._modules: list[ContextModule] = []
         self._state = State.Idle
         self._thread: threading.Thread|None = None
+        self._interrupt_callbacks: set[Callable[["Context"], None]] = set()
         self._argument_parser: argparse.ArgumentParser = argparse.ArgumentParser(
             prog=program_name,
             description=description,
@@ -102,6 +103,13 @@ class Context:
         instance = module(self)
         bisect.insort(self._modules, instance, key=lambda m: m.NAME)
         return instance
+
+    def on_interrupt(self, callback: Callable[["Context"], None]) -> "Context":
+        """
+        Add a callback for when the context is interrupted.
+        """
+        self._interrupt_callbacks.add(callback)
+        return self
 
     def execute(self):
         execute(self)
@@ -144,8 +152,10 @@ class Context:
         Stop the current context
         """
         assert self._state == State.Running, "Context is not running."
-        print("Stopping...")
         self._state = State.Stopping
+        print("Stopping...")
+        for callback in self._interrupt_callbacks:
+            callback(self)
 
     def wait_for_finish(self):
         """
