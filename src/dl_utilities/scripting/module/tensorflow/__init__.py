@@ -35,7 +35,8 @@ class Tensorflow(ContextModule):
             gpu_list = integration.tensorflow.devices.best_gpus(gpu_list, config.num_gpus)
         else:
             gpu_list = []
-        integration.tensorflow.devices.use(gpu_list, use_dynamic_memory=not config.use_static_memory)
+        print("GPU list being used:", gpu_list)
+        integration.tensorflow.devices.use(gpus=gpu_list, use_dynamic_memory=not config.use_static_memory)
 
     def _init(self):
         config = self.context.config

@@ -38,32 +38,19 @@ def gpu_list() -> list[tf.config.PhysicalDevice]:
     return tf.config.list_physical_devices("GPU")
 
 
+# TODO: Swap main argument to cpus and gpus.
 def use(
-    *device_or_devices: tf.config.PhysicalDevice|list[tf.config.PhysicalDevice],
+    cpus: Optional[list[tf.config.PhysicalDevice]] = None,
+    gpus: Optional[list[tf.config.PhysicalDevice]] = None,
     use_dynamic_memory: bool = True
 ) -> list[tf.config.PhysicalDevice]:
     """
     Select the specified devices.
     """
-    devices = []
-    for device in device_or_devices:
-        if isinstance(device, tf.config.PhysicalDevice):
-            devices.append(device)
-        elif isinstance(device, list):
-            devices += device
-        else:
-            raise TypeError(f"Expected PhysicalDevice or list[PhysicalDevice], got {type(device)}")
-    cpus = []
-    gpus = []
-    for device in devices:
-        if device.device_type == "CPU":
-            cpus.append(device)
-        elif device.device_type == "GPU":
-            gpus.append(device)
-    if len(cpus) > 0:
+    if cpus is not None:
         tf.config.set_visible_devices(cpus, "CPU")
-    if len(gpus) > 0:
+    if gpus is not None:
         tf.config.set_visible_devices(gpus, "GPU")
-    for device in gpus:
-        tf.config.experimental.set_memory_growth(device, use_dynamic_memory)
+        for device in gpus:
+            tf.config.experimental.set_memory_growth(device, use_dynamic_memory)
     return tf.config.get_visible_devices()
