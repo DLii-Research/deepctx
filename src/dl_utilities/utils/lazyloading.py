@@ -65,12 +65,21 @@ def lazy_wrapper(factory: Callable[[], T]) -> T:
 
     In most situations, the import function must be defined in the following format:
 
-    '''py
+    ```py
     @lazy_wrapper
     def name():
         import name
         return name
+    ```
 
+    When dealing with local imports, it may be necessary to delete the globals.
+
+    ```py
+    @lazy_wrapper
+    def name():
+        del globals()["name"]
+        from . import name
+        return name
     ```
     """
     return cast(T, LazyWrapper(factory.__name__, factory))
