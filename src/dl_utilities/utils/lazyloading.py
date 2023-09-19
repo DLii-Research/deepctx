@@ -52,8 +52,8 @@ class LazyWrapper(Generic[T]):
             raise AttributeError(f"Attribute {attr} is not available.")
         return getattr(self.__wrapped_object__, attr)
 
-    # def __setattr__(self, attr, value):
-    #     setattr(self.__wrapped_object__, attr, value)
+    def __setattr__(self, attr, value):
+        setattr(self.__wrapped_object__, attr, value)
 
     def __repr__(self):
         return f"LazyObject({self.__name})"
