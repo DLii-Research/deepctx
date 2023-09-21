@@ -128,6 +128,20 @@ class Context:
     def execute(self):
         execute(self)
 
+    def _format_config(self, config: argparse.Namespace) -> argparse.Namespace:
+        """
+        Format configuration string fields with other values found in the config.
+        """
+        for key, value in config._get_kwargs():
+            if not isinstance(value, str):
+                continue
+            try:
+                new_value = getattr(config, key).format(**config.__dict__)
+            except:
+                raise Exception(f"Failed to format {key}={value}")
+            setattr(config, key, new_value)
+        return config
+
     def _run(self):
         """
         Run the given job.
@@ -157,7 +171,7 @@ class Context:
         self._state = State.Running
         for module in self._modules:
             module._define_arguments()
-        self._config = self._argument_parser.parse_args(self._argv)
+        self._config = self._format_config(self._argument_parser.parse_args(self._argv))
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
