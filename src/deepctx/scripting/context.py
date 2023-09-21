@@ -6,6 +6,8 @@ import threading
 import time
 from typing import Callable, cast, Optional, overload, TypeVar
 
+from ..utils.lazyloading import LazyWrapper
+
 ArgumentProvider = Callable[[argparse.ArgumentParser], None]|type["IArgumentProvider"]
 ArgumentParser = argparse.ArgumentParser|argparse._ArgumentGroup|argparse._MutuallyExclusiveGroup
 ContextModuleType = TypeVar("ContextModuleType", bound="ContextModule")
@@ -94,10 +96,15 @@ class Context:
         self.__argument_parser = argument_parser
         return self
 
-    def get(self, module: type[ContextModuleType]) -> ContextModuleType:
+    def get(
+        self,
+        module: type[ContextModuleType]|LazyWrapper[type[ContextModuleType]]
+    ) -> ContextModuleType:
         """
         Get the given module for the current context.
         """
+        if isinstance(module, LazyWrapper):
+            module = module.__wrapped_object__
         for used_module in self._modules:
             if isinstance(used_module, module):
                 return cast(ContextModuleType, used_module)
@@ -109,10 +116,13 @@ class Context:
         """
         return any(isinstance(used_module, module) for used_module in self._modules)
 
-    def use(self, module: type[ContextModuleType]) -> ContextModuleType:
+    def use(self, module: type[ContextModuleType]|LazyWrapper[type[ContextModuleType]]) -> ContextModuleType:
         """
         Use the given module in this context.
         """
+        # if isinstance(module, LazyWrapper):
+        #     module = module(self)
+        #     module = module.__wrapped_object__
         assert module not in self._modules
         instance = module(self)
         bisect.insort(self._modules, instance, key=lambda m: m.NAME)
