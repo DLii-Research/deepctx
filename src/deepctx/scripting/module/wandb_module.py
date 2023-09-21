@@ -156,9 +156,10 @@ class WandbApi(ContextModule):
         type: Optional[str] = None,
         aliases: Optional[list[str]] = None,
         use_as: Optional[str] = None,
-        help: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
         required: bool = False,
-        default: Optional[str] = ...,
+        default: Optional[str] = None,
         parser: Optional[ArgumentParser] = None
     ):
         """
@@ -169,33 +170,35 @@ class WandbApi(ContextModule):
         """
         assert name not in self._config_artifact_arguments, f"Artifact with key: `{name}` has already been added."
         parser = parser if parser is not None else self.context.argument_parser
-        group = parser.add_argument_group(title=f"{name}", description=help)
+        title = title if title is not None else name
+        group = parser.add_argument_group(title=title, description=description)
         group = group.add_mutually_exclusive_group(required=required)
-        group.add_argument(f"{name}-artifact", type=str, default=default, help="The name of the Weights & Biases artifact to use.")
-        group.add_argument(f"{name}-path", type=str, help="The local path to the artifact data.")
+        group.add_argument(f"--{name}-artifact", type=str, default=default, help="The name of the Weights & Biases artifact to use.")
+        group.add_argument(f"--{name}-path", type=str, help="The local path to the artifact data.")
         self._config_artifact_arguments[name] = ArtifactArgumentInfo(
             name=name,
             type=type,
             aliases=aliases,
             use_as=use_as)
 
-    def artifact_path(self, name: str):
+    def artifact_argument_path(self, name: str) -> Path:
         """
         Get the path of a provided artifact argument. If a local path is specifie, the path is
         returned. If a W&B artifact is provided, it will automatically be downloaded.
         """
-        assert name in self._config_artifacts, f"Artifact with key: `{name}` has not been added."
-        if self._config_artifacts[name] is None:
+        assert name in self._config_artifact_arguments, f"Artifact with key: `{name}` has not been added."
+        if name not in self._config_artifacts:
             config = self.context.config
-            if hasattr(config, f"{name}_artifact"):
+            if getattr(config, f"{name}_artifact") is not None:
                 artifact_info = self._config_artifact_arguments[name]
+                print("Added artifact info:", artifact_info)
                 artifact = self.use_artifact(
-                    artifact_or_name=artifact_info["name"],
+                    artifact_or_name=getattr(config, f"{name}_artifact"),
                     type=artifact_info["type"],
                     aliases=artifact_info["aliases"],
                     use_as=artifact_info["use_as"])
                 self._config_artifacts[name] = Path(artifact.download())
-            elif hasattr(config, f"{name}_path"):
+            elif getattr(config, f"{name}_path") is not None:
                 self._config_artifacts[name] = Path(getattr(config, f"{name}_path"))
             else:
                 raise RuntimeError(f"No artifact or path provided for: `{name}`.")
@@ -301,7 +304,7 @@ class Wandb(WandbApi):
         """
         Use the given artifact.
         """
-        if self._api_only:
+        if self._api_only or self.run.disabled:
             return super().use_artifact(artifact_or_name, type, aliases, use_as)
         return self.run.use_artifact(artifact_or_name, type, aliases, use_as)
 
@@ -313,9 +316,10 @@ class Wandb(WandbApi):
         type: Optional[str] = None,
         aliases: Optional[list[str]] = None,
         use_as: Optional[str] = None,
-        help: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
         required: bool = False,
-        default: Optional[str] = ...,
+        default: Optional[str] = None,
         parser: Optional[ArgumentParser] = None
     ):
         """
@@ -324,7 +328,16 @@ class Wandb(WandbApi):
 
         If a W&B artifact is specified, it will automatically be downloaded.
         """
-        super().add_artifact_argument(name, type, aliases, use_as, help, required, default, parser)
+        super().add_artifact_argument(
+            name,
+            type,
+            aliases,
+            use_as,
+            title,
+            description,
+            required,
+            default,
+            parser)
         self.exclude_config_keys([f"{name}_artifact"])
 
     def api_only(self, api_only: bool = True) -> "Wandb":
