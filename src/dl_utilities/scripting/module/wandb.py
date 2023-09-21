@@ -12,7 +12,7 @@ from ..context import Context, ContextModule
 T = TypeVar("T")
 DoResult = TypeVar("DoResult")
 
-class PersistentObjectFactory(abc.ABC, Generic[T]):
+class PersistentObject(abc.ABC, Generic[T]):
     """
     A factory for creating persistent objects that can be saved and loaded via W&B.
     """
@@ -27,7 +27,7 @@ class PersistentObjectFactory(abc.ABC, Generic[T]):
             context = Context.current()
         self._context = context
         self._instance: T = None # type: ignore
-        self._state = PersistentObjectFactory.State.Idle
+        self._state = PersistentObject.State.Idle
         self.context.get(Wandb)._factories.append(self) # Register this factory with W&B
 
     @property
@@ -59,27 +59,27 @@ class PersistentObjectFactory(abc.ABC, Generic[T]):
     def _do(self, operation: Callable[[], DoResult], state: State) -> DoResult:
         self._state = state
         result = operation()
-        self._state = PersistentObjectFactory.State.Idle
+        self._state = PersistentObject.State.Idle
         return result
 
     def _create(self) -> T:
         return self._do(
             lambda: self.create(self.context.config),
-            PersistentObjectFactory.State.Creating)
+            PersistentObject.State.Creating)
 
     def _load(self) -> T:
-        return self._do(self.load, PersistentObjectFactory.State.Loading)
+        return self._do(self.load, PersistentObject.State.Loading)
 
     def _save(self):
         if self._instance is None:
             return
-        return self._do(self.save, PersistentObjectFactory.State.Saving)
+        return self._do(self.save, PersistentObject.State.Saving)
 
     def path(self, path: str|Path) -> Path:
         assert not Path(path).is_absolute(), "Absolute paths are not allowed in persistent object factories."
         path = Path("persistent_objects") / path
         abs_path = Path(self.wandb.run.dir) / path
-        if self._state == PersistentObjectFactory.State.Loading:
+        if self._state == PersistentObject.State.Loading:
             self.wandb.restore(path, recursive=True)
         return abs_path
 
@@ -99,7 +99,7 @@ class PersistentObjectFactory(abc.ABC, Generic[T]):
 class Wandb(ContextModule):
     NAME = "Weights & Biases"
 
-    PersistentObjectFactory = PersistentObjectFactory
+    PersistentObject = PersistentObject
 
     def __init__(self, context: Context):
         super().__init__(context)
@@ -123,7 +123,7 @@ class Wandb(ContextModule):
         self._argument_parser = self.context.argument_parser.add_argument_group(
             title=self.NAME,
             description="Configuration for the Weights & Biases module.")
-        self._factories: list[PersistentObjectFactory] = []
+        self._factories: list[PersistentObject] = []
 
     @property
     def api(self) -> wandb.Api:

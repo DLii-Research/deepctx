@@ -7,7 +7,7 @@ import dl_utilities.scripting as dls
 from dl_utilities.lazy import tensorflow as tf
 
 
-class ModelFactory(dls.module.Wandb.PersistentObjectFactory[tf.keras.Model]):
+class PersistentModel(dls.module.Wandb.PersistentObject[tf.keras.Model]):
     def create(self, context: dls.Context):
         return tf.keras.Sequential([
             tf.keras.layers.Dense(10, activation='relu', input_shape=(784,)),
@@ -23,7 +23,7 @@ class ModelFactory(dls.module.Wandb.PersistentObjectFactory[tf.keras.Model]):
 
 
 def main(context: dls.Context):
-    model = ModelFactory().instance
+    model = PersistentModel().instance
 
 
 if __name__ == '__main__':
