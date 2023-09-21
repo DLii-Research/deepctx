@@ -301,6 +301,8 @@ class Wandb(WandbApi):
         """
         Use the given artifact.
         """
+        if self._api_only:
+            return super().use_artifact(artifact_or_name, type, aliases, use_as)
         return self.run.use_artifact(artifact_or_name, type, aliases, use_as)
 
     # Module Configuration -------------------------------------------------------------------------
