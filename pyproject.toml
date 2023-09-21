@@ -22,8 +22,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/DLii-Research/dl-utilities"
-"Bug Tracker" = "https://github.com/DLii-Research/dl-utilities/issues"
+"Homepage" = "https://github.com/DLii-Research/deepctx"
+"Bug Tracker" = "https://github.com/DLii-Research/deepctx/issues"
 
 [tool.ruff]
 line-length = 100
