@@ -55,6 +55,9 @@ class ContextModule:
         """
         return self._context
 
+    def __repr__(self):
+        return f"ContextModule[{self.NAME}]"
+
 class Context:
 
     # A mapping of threads to contexts
