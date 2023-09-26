@@ -58,16 +58,16 @@ def use(
             cpus = []
         elif isinstance(cpus, int):
             cpus = cpu_list()[:cpus]
-        elif len(cpus) > 0 and isinstance(cpus[0], int):
-            cpus = [cpu_list()[i] for i in cpus]
+        elif len(cpus) > 0 and isinstance(cpus[0], int): # type: ignore
+            cpus = [cpu_list()[i] for i in cpus] # type: ignore
         tf.config.set_visible_devices(cpus, "CPU")
     if gpus is not Ellipsis:
         if gpus is None:
             gpus = []
         elif isinstance(gpus, int):
             gpus = best_gpus(count=gpus)
-        elif len(gpus) > 0 and isinstance(gpus[0], int):
-            gpus = [gpu_list()[i] for i in gpus]
+        elif len(gpus) > 0 and isinstance(gpus[0], int): # type: ignore
+            gpus = [gpu_list()[i] for i in gpus] # type: ignore
         tf.config.set_visible_devices(gpus, "GPU")
         for device in gpus:
             tf.config.experimental.set_memory_growth(device, use_dynamic_memory)
