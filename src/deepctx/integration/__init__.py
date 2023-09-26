@@ -2,16 +2,16 @@ from ..utils.lazyloading import lazy_wrapper
 
 # Slurm Integration
 @lazy_wrapper
-def __import(): # type: ignore
+def slurm(): # type: ignore
     del globals()["slurm"]
     from . import slurm
+    globals()["slurm"] = slurm
     return slurm # type: ignore
-slurm = __import # Fix IDE highlighting
 
 # Tensorflow Integration
 @lazy_wrapper
-def __import():
+def tensorflow():
     del globals()["tensorflow"]
     from . import tensorflow
+    globals()["tensorflow"] = tensorflow
     return tensorflow # type: ignore
-tensorflow = __import # Fix IDE highlighting
