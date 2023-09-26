@@ -4,11 +4,10 @@ import enum
 import os
 from pathlib import Path
 from typing import cast
-import wandb
-from wandb.wandb_run import Run
 from typing import Callable, Generic, Optional, TypedDict, TypeVar
 from .. import ArgumentParser
 from ..context import Context, ContextModule
+from ...lazy import wandb
 
 T = TypeVar("T")
 DoResult = TypeVar("DoResult")
@@ -222,9 +221,11 @@ class Wandb(WandbApi):
 
     Api = WandbApi
     PersistentObject = PersistentObject
+    wandb = wandb
 
     def __init__(self, context: Context):
         super().__init__(context)
+        from wandb.wandb_run import Run
         self._run: Run|None = None
         self._api_only = False
         self._job_type: str|None = None
@@ -264,7 +265,7 @@ class Wandb(WandbApi):
         return self._can_resume
 
     @property
-    def run(self) -> Run:
+    def run(self): # implicit type to ensure lazy importing
         """
         Get the current run.
         """
@@ -272,6 +273,18 @@ class Wandb(WandbApi):
             raise RuntimeError("No Weights & Biases run instance available when using API only.")
         assert self._run is not None
         return self._run
+
+    def log_artifact(
+        self,
+        artifact: wandb.Artifact|Path|str,
+        name: Optional[str] = None,
+        type: Optional[str] = None,
+        aliases: Optional[list[str]] = None
+    ) -> wandb.Artifact:
+        """
+        Log the given artifact.
+        """
+        return self.run.log_artifact(artifact, name, type, aliases)
 
     def restore(
         self,
@@ -349,6 +362,7 @@ class Wandb(WandbApi):
 
     def defaults(
         self,
+        *,
         project: str|None = None,
         name: str|None = None,
         entity: str|None = None,
@@ -446,7 +460,8 @@ class Wandb(WandbApi):
                 return parse(os.environ[key.upper()])
             return self._defaults[key]
 
-        # Run ceration
+        # Run creation
+        from wandb.wandb_run import Run
         self._run = cast(Run, wandb.init(
             id=run_id,
             job_type=self._job_type,
@@ -488,6 +503,3 @@ class Wandb(WandbApi):
                         paths.append(child)
                     else:
                         self.run.save(str(child), base_path=str(child))
-
-
-context_module = Wandb
