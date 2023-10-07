@@ -1,9 +1,10 @@
 import argparse
 import os
+from typing import Optional, TypeVar
 from ...context import Context, ContextModule
 from .... import integration
 from .... import scripting as dls
-# from ....lazy import tensorflow as tf
+from ....lazy import tensorflow as tf
 
 class Tensorflow(ContextModule):
 
@@ -12,7 +13,28 @@ class Tensorflow(ContextModule):
     def __init__(self, context: Context):
         super().__init__(context)
         self._optimizer_argument_parsers = {}
+        self._strategy: tf.distribute.Strategy|None = None
         os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+
+    # Module Interface -----------------------------------------------------------------------------
+
+    def strategy(self) -> tf.distribute.OneDeviceStrategy:
+        """
+        Get the current strategy or select a strategy automically if it isn't set.
+        """
+        if self._strategy is None:
+            self.set_strategy(integration.tensorflow.strategy.auto())
+        return self._strategy # type: ignore
+
+    def set_strategy(self, strategy: tf.distribute.Strategy):
+        """
+        Set the current strategy.
+        """
+        assert self._strategy is None, "Cannot set strategy twice."
+        self._strategy = strategy
+        return self._strategy
+
+    # Module Configuration -------------------------------------------------------------------------
 
     def min_log_level(self, level: str|int) -> "Tensorflow":
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = str(level)
@@ -35,7 +57,6 @@ class Tensorflow(ContextModule):
             gpu_list = integration.tensorflow.devices.best_gpus(gpu_list, config.num_gpus)
         else:
             gpu_list = []
-        print("GPU list being used:", gpu_list)
         integration.tensorflow.devices.use(gpus=gpu_list, use_dynamic_memory=not config.use_static_memory)
 
     def _init(self):

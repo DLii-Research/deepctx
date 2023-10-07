@@ -2,7 +2,7 @@ import tensorflow as tf
 
 __strategy = None
 
-def auto() -> tf.distribute.Strategy:
+def auto() -> tf.distribute.OneDeviceStrategy|tf.distribute.MirroredStrategy:
     """
     Get the current strategy.
     """
