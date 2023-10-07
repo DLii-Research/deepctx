@@ -167,14 +167,15 @@ class WandbApi(ContextModule):
 
         If a W&B artifact is specified, it will automatically be downloaded.
         """
-        assert name not in self._config_artifact_arguments, f"Artifact with key: `{name}` has already been added."
+        key = name.replace("-", "_")
+        assert key not in self._config_artifact_arguments, f"Artifact with key: `{name}` has already been added."
         parser = parser if parser is not None else self.context.argument_parser
         title = title if title is not None else name
         group = parser.add_argument_group(title=title, description=description)
         group = group.add_mutually_exclusive_group(required=required)
         group.add_argument(f"--{name}-artifact", type=str, default=default, help="The name of the Weights & Biases artifact to use.")
         group.add_argument(f"--{name}-path", type=str, help="The local path to the artifact data.")
-        self._config_artifact_arguments[name] = ArtifactArgumentInfo(
+        self._config_artifact_arguments[key] = ArtifactArgumentInfo(
             name=name,
             type=type,
             aliases=aliases,
@@ -185,20 +186,20 @@ class WandbApi(ContextModule):
         Get the path of a provided artifact argument. If a local path is specifie, the path is
         returned. If a W&B artifact is provided, it will automatically be downloaded.
         """
-        assert name in self._config_artifact_arguments, f"Artifact with key: `{name}` has not been added."
+        key = name.replace("-", "_")
+        assert key in self._config_artifact_arguments, f"Artifact with key: `{name}` has not been added."
         if name not in self._config_artifacts:
             config = self.context.config
             if getattr(config, f"{name}_artifact") is not None:
-                artifact_info = self._config_artifact_arguments[name]
-                print("Added artifact info:", artifact_info)
+                artifact_info = self._config_artifact_arguments[key]
                 artifact = self.use_artifact(
-                    artifact_or_name=getattr(config, f"{name}_artifact"),
+                    artifact_or_name=getattr(config, f"{key}_artifact"),
                     type=artifact_info["type"],
                     aliases=artifact_info["aliases"],
                     use_as=artifact_info["use_as"])
-                self._config_artifacts[name] = Path(artifact.download())
+                self._config_artifacts[key] = Path(artifact.download())
             elif getattr(config, f"{name}_path") is not None:
-                self._config_artifacts[name] = Path(getattr(config, f"{name}_path"))
+                self._config_artifacts[key] = Path(getattr(config, f"{key}_path"))
             else:
                 raise RuntimeError(f"No artifact or path provided for: `{name}`.")
         return self._config_artifacts[name]
