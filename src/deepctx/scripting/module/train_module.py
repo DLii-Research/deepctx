@@ -40,6 +40,7 @@ class Train(ContextModule):
         return model.fit(
             x,
             y,
+            callbacks=callbacks,
             batch_size=config.batch_size,
             validation_data=validation_data,
             epochs=config.epochs,
