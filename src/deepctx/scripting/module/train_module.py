@@ -29,7 +29,7 @@ class Train(ContextModule):
 
     # Module Interface -----------------------------------------------------------------------------
 
-    def fit(self, model, x, y=None, validation_data=None, callbacks=None):
+    def fit(self, model, x, y=None, validation_data=None, callbacks: list=None):
         """
         A simple wrapper to fit that automatically pulls values provided in the configuration and
         links to Weights & Biases if available.
@@ -37,6 +37,10 @@ class Train(ContextModule):
         if self._use_optional_training and not self.context.config.train:
             return
         config = self.context.config
+        callbacks = callbacks or []
+        if self.context.is_using(dls.module.Tensorflow):
+            callback = self.context.get(dls.module.Tensorflow).ContextStoppingCallback(self.context)
+            callbacks.append(callback)
         return model.fit(
             x,
             y,
