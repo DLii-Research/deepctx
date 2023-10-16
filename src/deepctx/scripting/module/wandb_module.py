@@ -3,6 +3,7 @@ import argparse
 import enum
 import os
 from pathlib import Path
+import shutil
 from typing import cast
 from typing import Callable, Generic, Optional, TypedDict, TypeVar
 from .. import ArgumentParser
@@ -104,7 +105,7 @@ class PersistentObject(abc.ABC, Generic[T]):
         path = Path("persistent_objects") / path
         abs_path = Path(self.wandb.run.dir) / path
         if self._state == PersistentObject.State.Loading:
-            self.wandb.restore(path, recursive=True)
+            self.wandb.restore(path)
         elif self._state == PersistentObject.State.Saving:
             self._to_save.append(path)
         return abs_path
@@ -299,8 +300,7 @@ class Wandb(WandbApi):
         name: str|Path,
         run_path: Optional[str|Path] = None,
         replace: bool = False,
-        root: Optional[str|Path] = None,
-        recursive: bool = False
+        root: Optional[str|Path] = None
     ) -> Path:
         """
         Restore (recursively) a the given directory from a previous run.
@@ -308,11 +308,26 @@ class Wandb(WandbApi):
         name = Path(name)
         run_path = Path(run_path if run_path is not None else self.run.path)
         run = self.api.run(str(run_path))
-        if recursive:
-            for f in filter(lambda f: str(f.name).startswith(str(name)), run.files()):
-                self.run.restore(f.name, str(run_path), replace, root)
-        else:
-            self.run.restore(str(name), str(run_path), replace, root)
+        found = False
+        for f in filter(lambda f: str(f.name).startswith(str(name)), run.files()):
+            self.run.restore(f.name, str(run_path), replace, root)
+            found = True
+        if not found:
+            print("Warning: file(s) not found online. Searching previous local runs...")
+            for run_dir in sorted(
+                (Path(self.run.dir) / "../../").glob(f"*{self.run.id}"),
+                reverse=True
+            ):
+                path = run_dir / "files" / name
+                if not path.exists():
+                    continue
+                print(f"Copying '{path}' to '{self.run.dir / name}'")
+                copy = shutil.copy if path.is_file() else shutil.copytree
+                copy(path, self.run.dir / name)
+                found = True
+                break
+        if not found:
+            raise RuntimeError(f"File(s) not found: `{name}`.")
         return Path(self.run.dir) / name
 
     def use_artifact(
@@ -420,7 +435,7 @@ class Wandb(WandbApi):
         """
         if self._api_only:
             raise RuntimeError("Cannot set Weights & Biases run to be resumeable when using API only.")
-        self._is_resumeable = resumeable
+        self._can_resume = resumeable
         return self
 
     # Module Lifecycle -----------------------------------------------------------------------------
