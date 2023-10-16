@@ -1,25 +1,14 @@
 import argparse
 import os
 from typing import Optional
-from ...context import Context, ContextModule, context as get_context
+from ...context import Context, ContextModule
 from .... import integration
 from .... import scripting as dls
 from ....lazy import tensorflow as tf
 
-class ContextStoppingCallback(tf.keras.callbacks.Callback):
-    def __init__(self, context: Optional[Context] = None):
-        super().__init__()
-        self._context = context if context else get_context()
-
-    def on_epoch_end(self, epoch, logs=None):
-        if not self._context.is_running:
-            self.model.stop_training = True
-
 class Tensorflow(ContextModule):
 
     NAME = "Tensorflow"
-
-    ContextStoppingCallback = ContextStoppingCallback
 
     def __init__(self, context: Context):
         super().__init__(context)
@@ -28,6 +17,10 @@ class Tensorflow(ContextModule):
         os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
     # Module Interface -----------------------------------------------------------------------------
+
+    def context_stopping_callback(self, context: Optional[Context] = None):
+        from .callbacks import ContextStoppingCallback
+        return ContextStoppingCallback(context if context else self.context)
 
     def strategy(self) -> tf.distribute.Strategy:
         """
