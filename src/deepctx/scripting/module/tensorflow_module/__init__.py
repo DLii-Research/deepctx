@@ -22,7 +22,7 @@ class Tensorflow(ContextModule):
         from .callbacks import ContextStoppingCallback
         return ContextStoppingCallback(context if context else self.context)
 
-    def strategy(self) -> tf.distribute.Strategy:
+    def strategy(self) -> "tf.distribute.Strategy":
         """
         Get the current strategy or select a strategy automically if it isn't set.
         """
@@ -30,7 +30,7 @@ class Tensorflow(ContextModule):
             self.set_strategy(integration.tensorflow.strategy.auto())
         return self._strategy # type: ignore
 
-    def set_strategy(self, strategy: tf.distribute.Strategy):
+    def set_strategy(self, strategy: "tf.distribute.Strategy"):
         """
         Set the current strategy.
 
@@ -40,7 +40,7 @@ class Tensorflow(ContextModule):
         self._strategy = strategy
         return self._strategy
 
-    # Module Configuration -------------------------------------------------------------------------
+    # # Module Configuration -------------------------------------------------------------------------
 
     def min_log_level(self, level: str|int) -> "Tensorflow":
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = str(level)

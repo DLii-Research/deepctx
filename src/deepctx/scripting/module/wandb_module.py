@@ -5,10 +5,13 @@ import os
 from pathlib import Path
 import shutil
 from typing import cast
-from typing import Callable, Generic, Optional, TypedDict, TypeVar
+from typing import Callable, Generic, Optional, TypedDict, TypeVar, TYPE_CHECKING
 from .. import ArgumentParser
 from ..context import Context, ContextModule
 from ...lazy import wandb
+
+if TYPE_CHECKING:
+    from wandb.wandb_run import Run
 
 T = TypeVar("T")
 DoResult = TypeVar("DoResult")
@@ -128,7 +131,7 @@ class WandbApi(ContextModule):
 
     def __init__(self, context: Context):
         super().__init__(context)
-        self._api: wandb.Api|None = None
+        self._api: "wandb.Api|None" = None
         self._argument_parser: ArgumentParser|None = None
         self._config_artifact_arguments: dict[str, ArtifactArgumentInfo] = {}
         self._config_artifacts: dict[str, Path] = {}
@@ -136,7 +139,7 @@ class WandbApi(ContextModule):
     # Module Interface -----------------------------------------------------------------------------
 
     @property
-    def api(self) -> wandb.Api:
+    def api(self) -> "wandb.Api":
         """
         Get the W&B API.
         """
@@ -214,11 +217,11 @@ class WandbApi(ContextModule):
 
     def use_artifact(
         self,
-        artifact_or_name: str|wandb.Artifact,
+        artifact_or_name: "str|wandb.Artifact",
         type: Optional[str] = None,
         aliases: Optional[list[str]] = None,
         use_as: Optional[str] = None
-    ) -> wandb.Artifact:
+    ) -> "wandb.Artifact":
         """
         Use the given artifact.
         """
@@ -229,12 +232,11 @@ class Wandb(WandbApi):
     NAME = "Weights & Biases"
 
     Api = WandbApi
-    PersistentObject = PersistentObject
-    wandb = wandb
+    # PersistentObject = PersistentObject
+    # wandb = wandb
 
     def __init__(self, context: Context):
         super().__init__(context)
-        from wandb.wandb_run import Run
         self._run: Run|None = None
         self._api_only = False
         self._job_type: str|None = None
@@ -274,7 +276,7 @@ class Wandb(WandbApi):
         return self._can_resume
 
     @property
-    def run(self): # implicit type to ensure lazy importing
+    def run(self) -> "Run": # implicit type to ensure lazy importing
         """
         Get the current run.
         """
@@ -285,11 +287,11 @@ class Wandb(WandbApi):
 
     def log_artifact(
         self,
-        artifact: wandb.Artifact|Path|str,
+        artifact: "wandb.Artifact|Path|str",
         name: Optional[str] = None,
         type: Optional[str] = None,
         aliases: Optional[list[str]] = None
-    ) -> wandb.Artifact:
+    ) -> "wandb.Artifact":
         """
         Log the given artifact.
         """
@@ -332,11 +334,11 @@ class Wandb(WandbApi):
 
     def use_artifact(
         self,
-        artifact_or_name: str|wandb.Artifact,
+        artifact_or_name: "str|wandb.Artifact",
         type: Optional[str] = None,
         aliases: Optional[list[str]] = None,
         use_as: Optional[str] = None
-    ) -> wandb.Artifact:
+    ) -> "wandb.Artifact":
         """
         Use the given artifact.
         """
@@ -484,7 +486,6 @@ class Wandb(WandbApi):
             return self._defaults[key]
 
         # Run creation
-        from wandb.wandb_run import Run
         self._run = cast(Run, wandb.init(
             id=run_id,
             job_type=self._job_type,
