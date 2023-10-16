@@ -29,7 +29,7 @@ class Tensorflow(ContextModule):
 
     # Module Interface -----------------------------------------------------------------------------
 
-    def strategy(self) -> tf.distribute.OneDeviceStrategy:
+    def strategy(self) -> tf.distribute.Strategy:
         """
         Get the current strategy or select a strategy automically if it isn't set.
         """
