@@ -232,8 +232,8 @@ class Wandb(WandbApi):
     NAME = "Weights & Biases"
 
     Api = WandbApi
-    # PersistentObject = PersistentObject
-    # wandb = wandb
+    PersistentObject = PersistentObject
+    wandb = wandb
 
     def __init__(self, context: Context):
         super().__init__(context)
