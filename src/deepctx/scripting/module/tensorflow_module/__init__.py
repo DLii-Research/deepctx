@@ -33,6 +33,8 @@ class Tensorflow(ContextModule):
     def set_strategy(self, strategy: tf.distribute.Strategy):
         """
         Set the current strategy.
+
+        strategy: tf.distribute.Strategy
         """
         assert self._strategy is None, "Cannot set strategy twice."
         self._strategy = strategy
