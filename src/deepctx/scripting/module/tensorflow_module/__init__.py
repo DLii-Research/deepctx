@@ -7,7 +7,7 @@ from .... import scripting as dls
 from ....lazy import tensorflow as tf
 
 class ContextStoppingCallback(tf.keras.callbacks.Callback):
-    def __init__(self, context: Optional[Context]):
+    def __init__(self, context: Optional[Context] = None):
         super().__init__()
         self._context = context if context else get_context()
 

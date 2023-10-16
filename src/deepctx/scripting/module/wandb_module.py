@@ -47,6 +47,7 @@ class PersistentObject(abc.ABC, Generic[T]):
         self._context = context
         self._instance: T = None # type: ignore
         self._state = PersistentObject.State.Idle
+        self._to_save: list[Path] = []
         self.context.get(Wandb)._persistent_objects.append(self) # Register this factory with W&B
 
     @property
@@ -92,7 +93,11 @@ class PersistentObject(abc.ABC, Generic[T]):
     def _save(self):
         if self._instance is None:
             return
-        return self._do(self.save, PersistentObject.State.Saving)
+        result = self._do(self.save, PersistentObject.State.Saving)
+        for path in self._to_save:
+            self.wandb.run.save(str(path))
+        self._to_save.clear()
+        return result
 
     def path(self, path: str|Path) -> Path:
         assert not Path(path).is_absolute(), "Absolute paths are not allowed in persistent object factories."
@@ -100,6 +105,8 @@ class PersistentObject(abc.ABC, Generic[T]):
         abs_path = Path(self.wandb.run.dir) / path
         if self._state == PersistentObject.State.Loading:
             self.wandb.restore(path, recursive=True)
+        elif self._state == PersistentObject.State.Saving:
+            self._to_save.append(path)
         return abs_path
 
     @abc.abstractmethod
