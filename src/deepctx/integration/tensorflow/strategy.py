@@ -11,10 +11,10 @@ def auto() -> tf.distribute.OneDeviceStrategy|tf.distribute.MirroredStrategy:
         cpus = [gpu.name.split(':', maxsplit=1)[1] for gpu in tf.config.get_visible_devices("CPU")]
         gpus = [cpu.name.split(':', maxsplit=1)[1] for cpu in tf.config.get_visible_devices("GPU")]
         if len(gpus) > 1:
-            __strategy = tf.distribute.MirroredStrategy(cpus + gpus)
+            __strategy = tf.distribute.MirroredStrategy(gpus)
         elif len(gpus) == 1:
             __strategy = tf.distribute.OneDeviceStrategy(gpus[0])
         else:
-            __strategy = tf.distribute.OneDeviceStrategy(tf.config.get_visible_devices("CPU"))
+            __strategy = tf.distribute.OneDeviceStrategy(cpus[0])
     return __strategy
 
