@@ -117,6 +117,8 @@ class Context:
         """
         Check if the given module is being used in this context.
         """
+        if isinstance(module, LazyWrapper):
+            module = module.__wrapped_object__
         return any(isinstance(used_module, module) for used_module in self._modules)
 
     def use(self, module: type[ContextModuleType]|LazyWrapper[type[ContextModuleType]]) -> ContextModuleType:
