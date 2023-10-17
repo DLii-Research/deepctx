@@ -42,6 +42,9 @@ class ContextModule:
     def _start(self):
         pass
 
+    def _ready(self):
+        pass
+
     def _stop(self):
         pass
 
@@ -168,6 +171,9 @@ class Context:
         if self._state == State.Running:
             for module in self._modules:
                 module._start()
+        if self._state == State.Running:
+            for module in self._modules:
+                module._ready()
         if self._state == State.Running:
             self._job(self)
             self._state = State.Stopping

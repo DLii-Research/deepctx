@@ -1,7 +1,7 @@
 from typing import Optional, TypedDict
 from .. import ArgumentParser
 from ..context import Context, ContextModule
-from ... import scripting as dls
+from ... import scripting as dcs
 
 class TrainConfigDefaults(TypedDict, total=False):
     """
@@ -29,7 +29,7 @@ class Train(ContextModule):
 
     # Module Interface -----------------------------------------------------------------------------
 
-    def fit(self, model, x, y=None, validation_data=None, callbacks: list=None):
+    def fit(self, model, x, y=None, validation_data=None, callbacks: Optional[list] = None):
         """
         A simple wrapper to fit that automatically pulls values provided in the configuration and
         links to Weights & Biases if available.
@@ -37,10 +37,12 @@ class Train(ContextModule):
         if self._use_optional_training and not self.context.config.train:
             return
         config = self.context.config
-        callbacks = callbacks or []
-        if self.context.is_using(dls.module.Tensorflow):
-            callback = self.context.get(dls.module.Tensorflow).ContextStoppingCallback(self.context)
+        callbacks = list(callbacks or [])
+        if self.context.is_using(dcs.module.Tensorflow):
+            callback = self.context.get(dcs.module.Tensorflow).context_stopping_callback()
             callbacks.append(callback)
+        if self.context.is_using(dcs.module.Wandb):
+            callbacks.append(self.context.get(dcs.module.Wandb).wandb.keras.WandbMetricsLogger())
         return model.fit(
             x,
             y,
@@ -57,7 +59,7 @@ class Train(ContextModule):
     # Module Configuration -------------------------------------------------------------------------
 
     @property
-    def train_argument_parser(self) -> dls.ArgumentParser:
+    def train_argument_parser(self) -> dcs.ArgumentParser:
         """
         Get the argument parser for this module.
         """
@@ -66,7 +68,7 @@ class Train(ContextModule):
         return self._train_argument_parser
 
     @property
-    def validation_argument_parser(self) -> dls.ArgumentParser:
+    def validation_argument_parser(self) -> dcs.ArgumentParser:
         """
         Get the argument parser for this module.
         """
@@ -149,13 +151,18 @@ class Train(ContextModule):
             config.epochs = 2**32 - 1
         if config.val_batch_size is None:
             config.val_batch_size = config.batch_size
-        if config.steps_per_epoch is not None and config.val_steps_per_epoch is None:
-            config.val_steps_per_epoch = config.config.steps_per_epoch
-        if self.context.is_using(dls.module.Wandb):
-            wandb = self.context.get(dls.module.Wandb)
-            if config.initial_epoch is None:
-                config.initial_epoch = wandb.run.step
+        if self._use_steps and config.steps_per_epoch is not None and config.val_steps_per_epoch is None:
+            config.val_steps_per_epoch = config.steps_per_epoch
+        if self.context.is_using(dcs.module.Wandb):
+            wandb = self.context.get(dcs.module.Wandb)
             wandb.exclude_config_keys([
                 "epochs",
                 "initial_epoch"
             ])
+
+    def _ready(self):
+        config = self.context.config
+        if self.context.is_using(dcs.module.Wandb):
+            wandb = self.context.get(dcs.module.Wandb)
+            if config.initial_epoch is None:
+                config.initial_epoch = wandb.run.step
