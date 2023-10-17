@@ -4,8 +4,7 @@ import enum
 import os
 from pathlib import Path
 import shutil
-from typing import cast
-from typing import Callable, Generic, Optional, TypedDict, TypeVar, TYPE_CHECKING
+from typing import Callable, cast, Generic, Optional, TypedDict, TypeVar, TYPE_CHECKING
 from .. import ArgumentParser
 from ..context import Context, ContextModule
 from ...lazy import wandb
@@ -486,7 +485,7 @@ class Wandb(WandbApi):
             return self._defaults[key]
 
         # Run creation
-        self._run = cast(Run, wandb.init(
+        self._run = cast("Run", wandb.init(
             id=run_id,
             job_type=self._job_type,
             project=parameter("wandb_project"),
