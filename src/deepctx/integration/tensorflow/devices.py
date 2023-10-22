@@ -1,27 +1,26 @@
 import tensorflow as tf
-from typing import Iterable, Optional, TypedDict
+from typing import cast, Iterable, Optional, TypedDict
 
-from ...hardware import gpu_memory
+from ... import hardware
 
 # Type Definitions ---------------------------------------------------------------------------------
 
-GpuMemoryInfo = TypedDict("GpuMemoryInfo", {"used": int, "free": int, "total": int})
+class TfGpuInfo(hardware.GpuInfo):
+    device: tf.config.PhysicalDevice
 
 # Interface Functions ------------------------------------------------------------------------------
 
 def best_gpus(
-    gpus: Optional[list[tf.config.PhysicalDevice]] = None,
+    gpus: Optional[list[TfGpuInfo]] = None,
     count: int = 1
-) -> list[tf.config.PhysicalDevice]:
+) -> list[TfGpuInfo]:
     """
     Select the given number of GPUs. The selected devices are prioritized by their available memory.
     """
-    memory_utilization = {gpu: memory["free"] for gpu, memory in zip(gpu_list(), gpu_memory())}
     if gpus is None:
         gpus = gpu_list()
-    # Sort gpus list by memory utilization
-    gpus.sort(key=lambda gpu: memory_utilization[gpu], reverse=True)
-    return gpus[:count]
+    best_gpus = hardware.best_gpus(cast(list[hardware.GpuInfo], gpus), count=count)
+    return cast(list[TfGpuInfo], best_gpus)
 
 
 def cpu_list() -> list[tf.config.PhysicalDevice]:
@@ -31,17 +30,22 @@ def cpu_list() -> list[tf.config.PhysicalDevice]:
     return tf.config.list_physical_devices("CPU")
 
 
-def gpu_list() -> list[tf.config.PhysicalDevice]:
+def gpu_list() -> list[TfGpuInfo]:
     """
     Get the list of visible GPU devices.
     """
-    return tf.config.list_physical_devices("GPU")
+    gpus = cast(list[TfGpuInfo], hardware.gpus())
+    devices = tf.config.list_physical_devices("GPU")
+    assert len(gpus) == len(devices), "GPU list length mismatch"
+    for gpu, device in zip(gpus, devices):
+        gpu["device"] = device
+    return gpus
 
 
 def use(
     *,
     cpus: Optional[int|Iterable[tf.config.PhysicalDevice]|Iterable[int]|None] = ...,
-    gpus: Optional[int|Iterable[tf.config.PhysicalDevice]|Iterable[int]|None] = ...,
+    gpus: Optional[int|Iterable[TfGpuInfo]|Iterable[int]|None] = ...,
     use_dynamic_memory: bool = True
 ) -> list[tf.config.PhysicalDevice]:
     """
@@ -69,6 +73,6 @@ def use(
         elif len(gpus) > 0 and isinstance(gpus[0], int): # type: ignore
             gpus = [gpu_list()[i] for i in gpus] # type: ignore
         tf.config.set_visible_devices(gpus, "GPU")
-        for device in gpus:
-            tf.config.experimental.set_memory_growth(device, use_dynamic_memory)
+        for info in cast(list[TfGpuInfo], gpus):
+            tf.config.experimental.set_memory_growth(info["device"], use_dynamic_memory)
     return tf.config.get_visible_devices()
