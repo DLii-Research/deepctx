@@ -72,7 +72,7 @@ def use(
             gpus = best_gpus(count=gpus)
         elif len(gpus) > 0 and isinstance(gpus[0], int): # type: ignore
             gpus = [gpu_list()[i] for i in gpus] # type: ignore
-        tf.config.set_visible_devices(gpus, "GPU")
+        tf.config.set_visible_devices([gpu["device"] for gpu in cast(list[TfGpuInfo], gpus)], "GPU")
         for info in cast(list[TfGpuInfo], gpus):
             tf.config.experimental.set_memory_growth(info["device"], use_dynamic_memory)
     return tf.config.get_visible_devices()
