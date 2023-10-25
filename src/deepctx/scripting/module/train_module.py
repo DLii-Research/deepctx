@@ -29,7 +29,7 @@ class Train(ContextModule):
 
     # Module Interface -----------------------------------------------------------------------------
 
-    def fit(self, model, x, y=None, validation_data=None, callbacks: Optional[list] = None):
+    def fit(self, model, x, y=None, validation_data=None, callbacks: Optional[list] = None, **kwargs):
         """
         A simple wrapper to fit that automatically pulls values provided in the configuration and
         links to Weights & Biases if available.
@@ -54,7 +54,8 @@ class Train(ContextModule):
             steps_per_epoch=getattr(config, "steps_per_epoch", None),
             validation_steps=getattr(config, "val_steps_per_epoch", None),
             workers=getattr(config, "workers", None),
-            use_multiprocessing=getattr(config, "workers", 0) > 0)
+            use_multiprocessing=getattr(config, "workers", 0) > 0,
+            **kwargs)
 
     # Module Configuration -------------------------------------------------------------------------
 
