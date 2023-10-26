@@ -7,6 +7,7 @@ class TrainConfigDefaults(TypedDict, total=False):
     """
     The default values for the training module.
     """
+    accumulation_steps: int|None
     epochs: int|float # float for inf
     batch_size: int
     val_batch_size: int
@@ -21,6 +22,7 @@ class Train(ContextModule):
     def __init__(self, context: Context):
         super().__init__(context)
         self._defaults: TrainConfigDefaults = {}
+        self._use_gradient_accumulation = False
         self._use_multiprocessing = True
         self._use_optional_training = False
         self._use_steps = False
@@ -28,6 +30,25 @@ class Train(ContextModule):
         self._validation_argument_parser: ArgumentParser|None = None
 
     # Module Interface -----------------------------------------------------------------------------
+
+    @property
+    def batch_size(self) -> int:
+        """
+        Get the batch size adjusted for gradient accumulation.
+        """
+        if self._use_gradient_accumulation:
+            return self.context.config.batch_size//self.context.config.accumulation_steps
+        return self.context.config.batch_size
+
+    @property
+    def steps_per_epoch(self) -> int:
+        """
+        Get the steps per epoch adjusted for gradient accumulation.
+        """
+        assert self._use_steps
+        if self._use_gradient_accumulation:
+            return self.context.config.steps_per_epoch*self.context.config.accumulation_steps
+        return self.context.config.steps_per_epoch
 
     def fit(self, model, x, y=None, validation_data=None, callbacks: Optional[list] = None, **kwargs):
         """
@@ -43,15 +64,21 @@ class Train(ContextModule):
             callbacks.append(callback)
         if self.context.is_using(dcs.module.Wandb):
             callbacks.append(self.context.get(dcs.module.Wandb).wandb.keras.WandbMetricsLogger())
+        batch_size = config.batch_size
+        if self._use_gradient_accumulation:
+            batch_size = config.batch_size//self._use_gradient_accumulation
+        steps_per_epoch = getattr(config, "steps_per_epoch", None)
+        if steps_per_epoch is not None and self._use_gradient_accumulation:
+            steps_per_epoch = steps_per_epoch*config.accumulation_steps
         return model.fit(
             x,
             y,
             callbacks=callbacks,
-            batch_size=config.batch_size,
+            batch_size=batch_size,
             validation_data=validation_data,
             epochs=config.epochs,
             initial_epoch=config.initial_epoch or 0,
-            steps_per_epoch=getattr(config, "steps_per_epoch", None),
+            steps_per_epoch=steps_per_epoch,
             validation_steps=getattr(config, "val_steps_per_epoch", None),
             workers=getattr(config, "workers", None),
             use_multiprocessing=getattr(config, "workers", 0) > 0,
@@ -80,6 +107,7 @@ class Train(ContextModule):
     def defaults(
         self,
         *,
+        accumulation_steps: Optional[int] = ...,
         epochs: Optional[int|float] = ...,
         batch_size: Optional[int] = ...,
         val_batch_size: Optional[int] = ...,
@@ -88,6 +116,7 @@ class Train(ContextModule):
         workers: Optional[int] = ...
     ) -> "Train":
         defaults = {
+            "accumulation_steps": accumulation_steps,
             "epochs": epochs,
             "batch_size": batch_size,
             "val_batch_size": val_batch_size,
@@ -114,6 +143,13 @@ class Train(ContextModule):
         self._use_optional_training = optional_training
         return self
 
+    def use_gradient_accumulation(self, gradient_accumulation: bool = True) -> "Train":
+        """
+        Set whether to enable gradient accumulation.
+        """
+        self._use_gradient_accumulation = gradient_accumulation
+        return self
+
     def use_steps(self, use_steps: bool = True) -> "Train":
         """
         Use training steps instead of traditional epochs.
@@ -134,7 +170,9 @@ class Train(ContextModule):
         train.add_argument("--initial-epoch", type=int, default=self._defaults.get("initial_epoch", None), help="The initial training epoch to start at.")
         train.add_argument("--batch-size", type=int, default=self._defaults.get("batch_size", 32), help="The training batch size to use.")
         if self._use_steps:
-            train.add_argument("--steps-per-epoch", type=int, default=self._defaults.get("steps_per_epoch", None), required="steps_per_epoch" not in self._defaults, help="The number of steps per epoch to use for training.")
+            train.add_argument("--steps-per-epoch", type=int, default=self._defaults.get("steps_per_epoch", None), required=("steps_per_epoch" not in self._defaults), help="The number of steps per epoch to use for training.")
+        if self._use_gradient_accumulation:
+            train.add_argument("--accumulation-steps", type=int, default=self._defaults.get("accumulation_steps", 1), help="Accumulate gradients over this many steps.")
         if self._use_optional_training:
             train.add_argument("--train", action="store_true", help="Train the model.")
         if self._use_multiprocessing:
@@ -144,10 +182,12 @@ class Train(ContextModule):
         val = self.validation_argument_parser
         val.add_argument("--val-batch-size", type=int, default=self._defaults.get("val_batch_size", None), help="The validation batch size to use.")
         if self._use_steps:
-            val.add_argument("--val-steps-per-epoch", type=int, default=self._defaults.get("val_steps_per_epoch", None), required="val_steps_per_epoch" not in self._defaults, help="The number of steps per epoch to use for validation.")
+            val.add_argument("--val-steps-per-epoch", type=int, default=self._defaults.get("val_steps_per_epoch", None), required=("val_steps_per_epoch" not in self._defaults), help="The number of steps per epoch to use for validation.")
 
     def _init(self):
         config = self.context.config
+        if self._use_gradient_accumulation and config.batch_size % config.accumulation_steps != 0:
+            raise ValueError("Batch size must be divisible by accumulation steps.")
         if config.epochs == float("inf") or config.epochs is None:
             config.epochs = 2**32 - 1
         if config.val_batch_size is None:
