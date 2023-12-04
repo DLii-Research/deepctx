@@ -1,9 +1,9 @@
 """
 This module provides a simple lazy-loading mechanism for various libraries.
 """
-from typing import Callable, cast, Generic, TypeVar
+from typing import Callable, cast, Generic, Set, TypeVar
 
-_lazy_attribute_blacklist: set[str] = set([
+_lazy_attribute_blacklist: Set[str] = set([
     # IPython
     "_ipython_canary_method_should_not_exist_",
     "_ipython_display_",
