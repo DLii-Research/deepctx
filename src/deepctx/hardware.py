@@ -1,6 +1,6 @@
 import os
 import subprocess
-from typing import Optional, TypedDict
+from typing import List, Optional, TypedDict
 
 # Type Definitions ---------------------------------------------------------------------------------
 
@@ -14,9 +14,9 @@ class GpuInfo(TypedDict):
 # Interface Functions ------------------------------------------------------------------------------
 
 def best_gpus(
-    gpu_list: Optional[list[GpuInfo]] = None,
+    gpu_list: Optional[List[GpuInfo]] = None,
     count: Optional[int] = None
-) -> list[GpuInfo]:
+) -> List[GpuInfo]:
     """
     Select the given number of GPUs. The selected devices are prioritized by the number of processes
     currently running and the memory usage.
@@ -27,7 +27,7 @@ def best_gpus(
         count = len(gpu_list)
     return sorted(gpu_list, key=lambda gpu: (gpu["num_processes"], -gpu["memory_free"]))[:count]
 
-def gpus(ignore_cuda_visibility: bool = False) -> list[GpuInfo]:
+def gpus(ignore_cuda_visibility: bool = False) -> List[GpuInfo]:
     gpus: dict[str, GpuInfo] = {}
     # Memory usage info
     command = "nvidia-smi --query-gpu=gpu_uuid,memory.used,memory.free,memory.total --format=csv"
