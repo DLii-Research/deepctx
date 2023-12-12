@@ -1,8 +1,9 @@
 import tensorflow as tf
+from typing import Union
 
 __strategy = None
 
-def auto() -> tf.distribute.OneDeviceStrategy|tf.distribute.MirroredStrategy:
+def auto() -> Union[tf.distribute.OneDeviceStrategy, tf.distribute.MirroredStrategy]:
     """
     Get the current strategy.
     """

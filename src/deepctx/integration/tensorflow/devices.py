@@ -1,5 +1,5 @@
 import tensorflow as tf
-from typing import cast, Iterable, Optional, TypedDict
+from typing import cast, Iterable, List, Optional, TypedDict, Union
 
 from ... import hardware
 
@@ -11,30 +11,30 @@ class TfGpuInfo(hardware.GpuInfo):
 # Interface Functions ------------------------------------------------------------------------------
 
 def best_gpus(
-    gpus: Optional[list[TfGpuInfo]] = None,
+    gpus: Optional[List[TfGpuInfo]] = None,
     count: int = 1
-) -> list[TfGpuInfo]:
+) -> List[TfGpuInfo]:
     """
     Select the given number of GPUs. The selected devices are prioritized by their available memory.
     """
     if gpus is None:
         gpus = gpu_list()
-    best_gpus = hardware.best_gpus(cast(list[hardware.GpuInfo], gpus), count=count)
-    return cast(list[TfGpuInfo], best_gpus)
+    best_gpus = hardware.best_gpus(cast(List[hardware.GpuInfo], gpus), count=count)
+    return cast(List[TfGpuInfo], best_gpus)
 
 
-def cpu_list() -> list[tf.config.PhysicalDevice]:
+def cpu_list() -> List[tf.config.PhysicalDevice]:
     """
     Get the list of visible CPU devices.
     """
     return tf.config.list_physical_devices("CPU")
 
 
-def gpu_list() -> list[TfGpuInfo]:
+def gpu_list() -> List[TfGpuInfo]:
     """
     Get the list of visible GPU devices.
     """
-    gpus = cast(list[TfGpuInfo], hardware.gpus())
+    gpus = cast(List[TfGpuInfo], hardware.gpus())
     devices = tf.config.list_physical_devices("GPU")
     assert len(gpus) == len(devices), "GPU list length mismatch"
     for gpu, device in zip(gpus, devices):
@@ -44,10 +44,10 @@ def gpu_list() -> list[TfGpuInfo]:
 
 def use(
     *,
-    cpus: Optional[int|Iterable[tf.config.PhysicalDevice]|Iterable[int]|None] = ...,
-    gpus: Optional[int|Iterable[TfGpuInfo]|Iterable[int]|None] = ...,
+    cpus: Optional[Union[int, Iterable[tf.config.PhysicalDevice], Iterable[int], None]] = ...,
+    gpus: Optional[Union[int, Iterable[TfGpuInfo], Iterable[int], None]] = ...,
     use_dynamic_memory: bool = True
-) -> list[tf.config.PhysicalDevice]:
+) -> List[tf.config.PhysicalDevice]:
     """
     Select the specified devices.
 
@@ -72,7 +72,7 @@ def use(
             gpus = best_gpus(count=gpus)
         elif len(gpus) > 0 and isinstance(gpus[0], int): # type: ignore
             gpus = [gpu_list()[i] for i in gpus] # type: ignore
-        tf.config.set_visible_devices([gpu["device"] for gpu in cast(list[TfGpuInfo], gpus)], "GPU")
-        for info in cast(list[TfGpuInfo], gpus):
+        tf.config.set_visible_devices([gpu["device"] for gpu in cast(List[TfGpuInfo], gpus)], "GPU")
+        for info in cast(List[TfGpuInfo], gpus):
             tf.config.experimental.set_memory_growth(info["device"], use_dynamic_memory)
     return tf.config.get_visible_devices()
