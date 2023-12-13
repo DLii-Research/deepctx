@@ -4,12 +4,12 @@ import enum
 import sys
 import threading
 import time
-from typing import Callable, cast, Optional, overload, TypeVar
+from typing import Callable, cast, Dict, List, Optional, overload, Type, TypeVar, Union
 
 from ..utils.lazyloading import LazyWrapper
 
-ArgumentProvider = Callable[[argparse.ArgumentParser], None]|type["IArgumentProvider"]
-ArgumentParser = argparse.ArgumentParser|argparse._ArgumentGroup|argparse._MutuallyExclusiveGroup
+ArgumentProvider = Union[Callable[[argparse.ArgumentParser], None], Type["IArgumentProvider"]]
+ArgumentParser = Union[argparse.ArgumentParser, argparse._ArgumentGroup, argparse._MutuallyExclusiveGroup]
 ContextModuleType = TypeVar("ContextModuleType", bound="ContextModule")
 Job = Callable[["Context"], None]
 
@@ -64,7 +64,7 @@ class ContextModule:
 class Context:
 
     # A mapping of threads to contexts
-    contexts: dict[threading.Thread, "Context"] = {}
+    contexts: Dict[threading.Thread, "Context"] = {}
 
     @staticmethod
     def current():
@@ -79,15 +79,15 @@ class Context:
         program_name: Optional[str] = None,
         description: Optional[str] = None,
         epilog: Optional[str] = None,
-        argv: Optional[list[str]] = None
+        argv: Optional[List[str]] = None
     ):
         self._job = job
         self._argv = argv
-        self._config: argparse.Namespace|None = None
-        self._modules: list[ContextModule] = []
+        self._config: Optional[argparse.Namespace] = None
+        self._modules: List[ContextModule] = []
         self._state = State.Idle
         self._store = {}
-        self._thread: threading.Thread|None = None
+        self._thread: Optional[threading.Thread] = None
         self._interrupt_callbacks: set[Callable[["Context"], None]] = set()
         self._argument_parser: argparse.ArgumentParser = argparse.ArgumentParser(
             prog=program_name,
@@ -104,7 +104,7 @@ class Context:
 
     def get(
         self,
-        module: type[ContextModuleType]|LazyWrapper[type[ContextModuleType]]
+        module: Optional[Union[Type[ContextModuleType], LazyWrapper[Type[ContextModuleType]]]]
     ) -> ContextModuleType:
         """
         Get the given module for the current context.
@@ -116,7 +116,7 @@ class Context:
                 return cast(ContextModuleType, used_module)
         raise Exception(f"Module {module} is not being used.")
 
-    def is_using(self, module: type[ContextModuleType]) -> bool:
+    def is_using(self, module: Type[ContextModuleType]) -> bool:
         """
         Check if the given module is being used in this context.
         """
@@ -124,7 +124,7 @@ class Context:
             module = module.__wrapped_object__
         return any(isinstance(used_module, module) for used_module in self._modules)
 
-    def use(self, module: type[ContextModuleType]|LazyWrapper[type[ContextModuleType]]) -> ContextModuleType:
+    def use(self, module: Union[Type[ContextModuleType], LazyWrapper[Type[ContextModuleType]]]) -> ContextModuleType:
         """
         Use the given module in this context.
         """
@@ -246,7 +246,7 @@ class Context:
         return self._state
 
     @property
-    def store(self) -> dict:
+    def store(self) -> Dict:
         """
         Get the store for this context.
         """
