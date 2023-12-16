@@ -1,6 +1,6 @@
 import argparse
 import os
-from typing import Optional
+from typing import Optional, Union
 from ...context import Context, ContextModule
 from .... import integration
 from .... import scripting as dls
@@ -13,7 +13,7 @@ class Tensorflow(ContextModule):
     def __init__(self, context: Context):
         super().__init__(context)
         self._optimizer_argument_parsers = {}
-        self._strategy: tf.distribute.Strategy|None = None
+        self._strategy: Optional[tf.distribute.Strategy] = None
         os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
     # Module Interface -----------------------------------------------------------------------------
@@ -42,7 +42,7 @@ class Tensorflow(ContextModule):
 
     # # Module Configuration -------------------------------------------------------------------------
 
-    def min_log_level(self, level: str|int) -> "Tensorflow":
+    def min_log_level(self, level: Union[str, int]) -> "Tensorflow":
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = str(level)
         return self
 

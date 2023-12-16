@@ -1,4 +1,4 @@
-from typing import Optional, TypedDict
+from typing import Optional, TypedDict, Union
 from .. import ArgumentParser
 from ..context import Context, ContextModule
 from ... import scripting as dcs
@@ -7,12 +7,12 @@ class TrainConfigDefaults(TypedDict, total=False):
     """
     The default values for the training module.
     """
-    accumulation_steps: int|None
-    epochs: int|float # float for inf
+    accumulation_steps: Optional[int]
+    epochs: Union[int, float] # float for inf
     batch_size: int
     val_batch_size: int
-    steps_per_epoch: int|None
-    val_steps_per_epoch: int|None
+    steps_per_epoch: Optional[int]
+    val_steps_per_epoch: Optional[int]
     workers: int
 
 class Train(ContextModule):
@@ -26,8 +26,8 @@ class Train(ContextModule):
         self._use_multiprocessing = True
         self._use_optional_training = False
         self._use_steps = False
-        self._train_argument_parser: ArgumentParser|None = None
-        self._validation_argument_parser: ArgumentParser|None = None
+        self._train_argument_parser: Optional[ArgumentParser] = None
+        self._validation_argument_parser: Optional[ArgumentParser] = None
 
     # Module Interface -----------------------------------------------------------------------------
 
@@ -108,11 +108,11 @@ class Train(ContextModule):
         self,
         *,
         accumulation_steps: Optional[int] = ...,
-        epochs: Optional[int|float] = ...,
+        epochs: Optional[Union[int, float]] = ...,
         batch_size: Optional[int] = ...,
         val_batch_size: Optional[int] = ...,
-        steps_per_epoch: Optional[int|None] = ...,
-        val_steps_per_epoch: Optional[int|None] = ...,
+        steps_per_epoch: Optional[Union[int, None]] = ...,
+        val_steps_per_epoch: Optional[Union[int, None]] = ...,
         workers: Optional[int] = ...
     ) -> "Train":
         defaults = {
@@ -181,6 +181,7 @@ class Train(ContextModule):
         #Validation Settings
         val = self.validation_argument_parser
         val.add_argument("--val-batch-size", type=int, default=self._defaults.get("val_batch_size", None), help="The validation batch size to use.")
+        val.add_argument("-val-frequency", type=int, default=self._defaults.get("val_frequency", 1), help="The number of epochs between each validation run.")
         if self._use_steps:
             val.add_argument("--val-steps-per-epoch", type=int, default=self._defaults.get("val_steps_per_epoch", None), required=("val_steps_per_epoch" not in self._defaults), help="The number of steps per epoch to use for validation.")
 

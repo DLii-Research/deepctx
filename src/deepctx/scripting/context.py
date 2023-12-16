@@ -133,7 +133,8 @@ class Context:
         #     module = module.__wrapped_object__
         assert module not in self._modules
         instance = module(self)
-        bisect.insort(self._modules, instance, key=lambda m: m.NAME)
+        self._modules.append(instance)
+        self._modules.sort(key=lambda m: m.NAME)
         return instance
 
     def on_interrupt(self, callback: Callable[["Context"], None]) -> "Context":

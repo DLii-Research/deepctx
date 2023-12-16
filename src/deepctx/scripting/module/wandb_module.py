@@ -4,7 +4,7 @@ import enum
 import os
 from pathlib import Path
 import shutil
-from typing import Callable, cast, Generic, Optional, TypedDict, TypeVar, TYPE_CHECKING
+from typing import Callable, cast, Generic, List, Optional, Set, TypedDict, TypeVar, TYPE_CHECKING, Union
 from .. import ArgumentParser
 from ..context import Context, ContextModule
 from ...lazy import wandb
@@ -20,19 +20,19 @@ class ArtifactArgumentInfo(TypedDict):
     Information about an artifact argument.
     """
     name: str
-    type: str|None
-    aliases: list[str]|None
-    use_as: str|None
+    type: Optional[str]
+    aliases: Optional[List[str]]
+    use_as: Optional[str]
 
 class WandbRunDefaults(TypedDict):
-    wandb_project: str|None
-    wandb_name: str|None
-    wandb_entity: str|None
-    wandb_group: str|None
-    wandb_tags: list[str]|None
-    wandb_notes: str|None
-    wandb_dir: str|None
-    wandb_save_code: bool|None
+    wandb_project: Optional[str]
+    wandb_name: Optional[str]
+    wandb_entity: Optional[str]
+    wandb_group: Optional[str]
+    wandb_tags: Optional[List[str]]
+    wandb_notes: Optional[str]
+    wandb_dir: Optional[str]
+    wandb_save_code: Optional[bool]
 
 class PersistentObject(abc.ABC, Generic[T]):
     """
@@ -50,7 +50,7 @@ class PersistentObject(abc.ABC, Generic[T]):
         self._context = context
         self._instance: T = None # type: ignore
         self._state = PersistentObject.State.Idle
-        self._to_save: list[Path] = []
+        self._to_save: List[Path] = []
         self.context.get(Wandb)._persistent_objects.append(self) # Register this factory with W&B
 
     @property
@@ -102,7 +102,7 @@ class PersistentObject(abc.ABC, Generic[T]):
         self._to_save.clear()
         return result
 
-    def path(self, path: str|Path) -> Path:
+    def path(self, path: Union[str, Path]) -> Path:
         assert not Path(path).is_absolute(), "Absolute paths are not allowed in persistent object factories."
         path = Path("persistent_objects") / path
         abs_path = Path(self.wandb.run.dir) / path
@@ -130,8 +130,8 @@ class WandbApi(ContextModule):
 
     def __init__(self, context: Context):
         super().__init__(context)
-        self._api: "wandb.Api|None" = None
-        self._argument_parser: ArgumentParser|None = None
+        self._api: "Optional[wandb.Api]" = None
+        self._argument_parser: Optional[ArgumentParser] = None
         self._config_artifact_arguments: dict[str, ArtifactArgumentInfo] = {}
         self._config_artifacts: dict[str, Path] = {}
 
@@ -163,7 +163,7 @@ class WandbApi(ContextModule):
         self,
         name: str,
         type: Optional[str] = None,
-        aliases: Optional[list[str]] = None,
+        aliases: Optional[List[str]] = None,
         use_as: Optional[str] = None,
         title: Optional[str] = None,
         description: Optional[str] = None,
@@ -216,9 +216,9 @@ class WandbApi(ContextModule):
 
     def use_artifact(
         self,
-        artifact_or_name: "str|wandb.Artifact",
+        artifact_or_name: "Union[str, wandb.Artifact]",
         type: Optional[str] = None,
-        aliases: Optional[list[str]] = None,
+        aliases: Optional[List[str]] = None,
         use_as: Optional[str] = None
     ) -> "wandb.Artifact":
         """
@@ -236,11 +236,11 @@ class Wandb(WandbApi):
 
     def __init__(self, context: Context):
         super().__init__(context)
-        self._run: Run|None = None
+        self._run: Optional[Run] = None
         self._api_only = False
-        self._job_type: str|None = None
+        self._job_type: Optional[str] = None
         self._can_resume: bool = False
-        self._config_exclude_keys: set[str] = set([
+        self._config_exclude_keys: Set[str] = set([
             "wandb_project",
             "wandb_name",
             "wandb_entity",
@@ -252,8 +252,8 @@ class Wandb(WandbApi):
             "wandb_resume",
             "wandb_mode"
         ])
-        self._config_include_keys: set[str] = set()
-        self._persistent_objects: list[PersistentObject] = []
+        self._config_include_keys: Set[str] = set()
+        self._persistent_objects: List[PersistentObject] = []
         self._defaults: WandbRunDefaults = {
             "wandb_project": None,
             "wandb_name": None,
@@ -286,10 +286,10 @@ class Wandb(WandbApi):
 
     def log_artifact(
         self,
-        artifact: "wandb.Artifact|Path|str",
+        artifact: "Union[wandb.Artifact, Path, str]",
         name: Optional[str] = None,
         type: Optional[str] = None,
-        aliases: Optional[list[str]] = None
+        aliases: Optional[List[str]] = None
     ) -> "wandb.Artifact":
         """
         Log the given artifact.
@@ -298,10 +298,10 @@ class Wandb(WandbApi):
 
     def restore(
         self,
-        name: str|Path,
-        run_path: Optional[str|Path] = None,
+        name: Union[str, Path],
+        run_path: Optional[Union[str, Path]] = None,
         replace: bool = False,
-        root: Optional[str|Path] = None
+        root: Optional[Union[str, Path]] = None
     ) -> Path:
         """
         Restore (recursively) a the given directory from a previous run.
@@ -333,9 +333,9 @@ class Wandb(WandbApi):
 
     def use_artifact(
         self,
-        artifact_or_name: "str|wandb.Artifact",
+        artifact_or_name: "Union[str, wandb.Artifact]",
         type: Optional[str] = None,
-        aliases: Optional[list[str]] = None,
+        aliases: Optional[List[str]] = None,
         use_as: Optional[str] = None
     ) -> "wandb.Artifact":
         """
@@ -351,7 +351,7 @@ class Wandb(WandbApi):
         self,
         name: str,
         type: Optional[str] = None,
-        aliases: Optional[list[str]] = None,
+        aliases: Optional[List[str]] = None,
         use_as: Optional[str] = None,
         title: Optional[str] = None,
         description: Optional[str] = None,
@@ -387,14 +387,14 @@ class Wandb(WandbApi):
     def defaults(
         self,
         *,
-        project: str|None = None,
-        name: str|None = None,
-        entity: str|None = None,
-        group: str|None = None,
-        tags: str|None = None,
-        notes: str|None = None,
-        dir: str|None = None,
-        save_code: str|None = None
+        project: Optional[str] = None,
+        name: Optional[str] = None,
+        entity: Optional[str] = None,
+        group: Optional[str] = None,
+        tags: Optional[str] = None,
+        notes: Optional[str] = None,
+        dir: Optional[str] = None,
+        save_code: Optional[str] = None
     ) -> "Wandb":
         """
         Set default parameters for the W&B run.
@@ -409,21 +409,21 @@ class Wandb(WandbApi):
         self._defaults["wandb_save_code"] = save_code
         return self
 
-    def exclude_config_keys(self, keys: set[str]|list[str]) -> "Wandb":
+    def exclude_config_keys(self, keys: Union[Set[str], List[str]]) -> "Wandb":
         """
         Add keys to exclude from the config.
         """
         self._config_exclude_keys.update(keys)
         return self
 
-    def include_config_keys(self, keys: set[str]|list[str]) -> "Wandb":
+    def include_config_keys(self, keys: Union[Set[str], List[str]]) -> "Wandb":
         """
         Add keys to include in the config.
         """
         self._config_include_keys.update(keys)
         return self
 
-    def job_type(self, job_type: str|None) -> "Wandb":
+    def job_type(self, job_type: Optional[str]) -> "Wandb":
         """
         Set the job type.
         """
@@ -471,7 +471,7 @@ class Wandb(WandbApi):
 
         # Run resuming
         resume = "never"
-        run_id: str|None = None
+        run_id: Optional[str] = None
         if self.can_resume and config.wandb_resume is not None:
             resume = "must"
             run_id = config.wandb_resume
