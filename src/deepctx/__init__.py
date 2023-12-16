@@ -1,6 +1,6 @@
 from .utils.lazyloading import lazy_wrapper
 
-__version__ = "0.0.23"
+__version__ = "0.0.24"
 
 from . import hardware
 from . import integration

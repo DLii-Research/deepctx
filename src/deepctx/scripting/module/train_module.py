@@ -80,6 +80,7 @@ class Train(ContextModule):
             initial_epoch=config.initial_epoch or 0,
             steps_per_epoch=steps_per_epoch,
             validation_steps=getattr(config, "val_steps_per_epoch", None),
+            validation_freq=config.val_frequency,
             workers=getattr(config, "workers", None),
             use_multiprocessing=getattr(config, "workers", 0) > 0,
             **kwargs)
@@ -113,6 +114,7 @@ class Train(ContextModule):
         val_batch_size: Optional[int] = ...,
         steps_per_epoch: Optional[Union[int, None]] = ...,
         val_steps_per_epoch: Optional[Union[int, None]] = ...,
+        val_frequency: Optional[int] = ...,
         workers: Optional[int] = ...
     ) -> "Train":
         defaults = {
@@ -122,6 +124,7 @@ class Train(ContextModule):
             "val_batch_size": val_batch_size,
             "steps_per_epoch": steps_per_epoch,
             "val_steps_per_epoch": val_steps_per_epoch,
+            "val_frequency": val_frequency,
             "workers": workers
         }
         for key, value in defaults.items():
