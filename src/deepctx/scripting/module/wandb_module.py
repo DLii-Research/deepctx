@@ -481,6 +481,7 @@ class Wandb(WandbApi):
         if self.can_resume and config.wandb_resume is not None:
             resume = "must"
             run_id = config.wandb_resume
+            self._force_local_restore = config.wandb_force_local_restore
 
         # Handling default parameters
         def parameter(key: str, parse = lambda x: x):
