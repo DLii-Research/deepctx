@@ -240,6 +240,7 @@ class Wandb(WandbApi):
         self._api_only = False
         self._job_type: Optional[str] = None
         self._can_resume: bool = False
+        self._force_local_restore: bool = False
         self._config_exclude_keys: Set[str] = set([
             "wandb_project",
             "wandb_name",
@@ -250,6 +251,7 @@ class Wandb(WandbApi):
             "wandb_dir",
             "wandb_save_code",
             "wandb_resume",
+            "wandb_force_local_restore"
             "wandb_mode"
         ])
         self._config_include_keys: Set[str] = set()
@@ -310,11 +312,13 @@ class Wandb(WandbApi):
         run_path = Path(run_path if run_path is not None else self.run.path)
         run = self.api.run(str(run_path))
         found = False
-        for f in filter(lambda f: str(f.name).startswith(str(name)), run.files()):
-            self.run.restore(f.name, str(run_path), replace, root)
-            found = True
+        if not self._force_local_restore:
+            for f in filter(lambda f: str(f.name).startswith(str(name)), run.files()):
+                self.run.restore(f.name, str(run_path), replace, root)
+                found = True
         if not found:
-            print("Warning: file(s) not found online. Searching previous local runs...")
+            if not self._force_local_restore:
+                print("Warning: file(s) not found online. Searching previous local runs...")
             for run_dir in sorted(
                 (Path(self.run.dir) / "../../").glob(f"*{self.run.id}"),
                 reverse=True
@@ -430,13 +434,14 @@ class Wandb(WandbApi):
         self._job_type = job_type
         return self
 
-    def resumeable(self, resumeable: bool = True) -> "Wandb":
+    def resumeable(self, resumeable: bool = True, force_local_restore: bool = False) -> "Wandb":
         """
         Check if this job type is able to be resumed.
         """
         if self._api_only:
             raise RuntimeError("Cannot set Weights & Biases run to be resumeable when using API only.")
         self._can_resume = resumeable
+        self._force_local_restore = force_local_restore
         return self
 
     # Module Lifecycle -----------------------------------------------------------------------------
@@ -456,6 +461,7 @@ class Wandb(WandbApi):
         group.add_argument("--wandb-mode", type=str, required=False, choices=["online", "offline", "disabled"], default="online", help="The logging mode.")
         if self.can_resume:
             group.add_argument("--wandb-resume", type=str, required=False, default=None, help="Resume a previous run given its ID.")
+            group.add_argument("--wandb-force-local-restore", action="store_true", required=False, default=False, help="Force local restore of files.")
 
     def _start(self):
         if self._api_only:
